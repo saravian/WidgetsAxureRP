@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Días No Laborables</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #fff;
+    padding: 12px;
+    font-size: 13px;
+    color: #333;
+  }
+
+  .widget-wrapper {
+    border: 2px solid #fd7e14;
+    border-radius: 6px;
+    padding: 14px;
+    background: #fff;
+    max-width: 340px;
+  }
+
+  .widget-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .widget-title span {
+    font-size: 15px;
+  }
+
+  .widget-title label {
+    font-weight: 700;
+    color: #c0561a;
+    font-size: 13px;
+  }
+
+  .widget-hint {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  /* Calendar */
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .cal-header button {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    font-size: 15px;
+    color: #555;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .cal-header button:hover { background: #f0f0f0; }
+
+  .cal-month-label {
+    font-weight: 700;
+    font-size: 13px;
+    color: #333;
+  }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+
+  .day-name {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #999;
+    padding: 2px 0 4px;
+  }
+
+  .day-cell {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 5px 2px;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    background: #fff;
+    color: #333;
+    transition: background 0.12s, border-color 0.12s;
+    user-select: none;
+  }
+
+  .day-cell:hover { background: #fff3cd; border-color: #ffc107; }
+
+  .day-cell.weekend {
+    background: #f8f9fa;
+    color: #aaa;
+  }
+
+  .day-cell.selected {
+    background: #dc3545 !important;
+    color: #fff !important;
+    border-color: #dc3545 !important;
+    font-weight: 700;
+  }
+
+  .day-cell.empty {
+    border: none;
+    cursor: default;
+    background: transparent;
+  }
+  .day-cell.empty:hover { background: transparent; border-color: transparent; }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 14px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: #666;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  /* Summary */
+  .summary {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: #fff3cd;
+    border-radius: 4px;
+    font-size: 11px;
+    line-height: 1.6;
+    display: none;
+  }
+
+  .summary.visible { display: block; }
+
+  .summary strong { color: #856404; }
+
+  .summary-dates { color: #856404; margin-top: 3px; word-break: break-word; }
+
+  .btn-clear {
+    margin-top: 5px;
+    font-size: 11px;
+    color: #dc3545;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
+
+  .btn-clear:hover { color: #a71d2a; }
+</style>
+</head>
+<body>
+
+<div class="widget-wrapper">
+  <div class="widget-title">
+    <span>📅</span>
+    <label>Días no laborables en el período</label>
+  </div>
+  <p class="widget-hint">
+    Seleccione los días feriados o no laborables que caigan dentro del período de vacaciones solicitado.
+  </p>
+
+  <!-- Calendar -->
+  <div class="cal-header">
+    <button id="btnPrev" onclick="changeMonth(-1)">&#8249;</button>
+    <span class="cal-month-label" id="monthLabel"></span>
+    <button id="btnNext" onclick="changeMonth(1)">&#8250;</button>
+  </div>
+
+  <div class="cal-grid" id="calGrid"></div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <span class="legend-dot" style="background:#dc3545;"></span> No laborable
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:#f8f9fa; border:1px solid #dee2e6;"></span> Fin de semana
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary" id="summary">
+    <strong id="summaryTitle"></strong>
+    <div class="summary-dates" id="summaryDates"></div>
+    <button class="btn-clear" onclick="clearAll()">Limpiar selección</button>
+  </div>
+</div>
+
+<script>
+  const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const DAYS   = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+  let selectedDates = [];
+  let viewYear  = new Date().getFullYear();
+  let viewMonth = new Date().getMonth();
+
+  function changeMonth(delta) {
+    viewMonth += delta;
+    if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    if (viewMonth < 0)  { viewMonth = 11; viewYear--; }
+    render();
+  }
+
+  function toggleDate(dateStr, btn) {
+    const idx = selectedDates.indexOf(dateStr);
+    if (idx >= 0) {
+      selectedDates.splice(idx, 1);
+      btn.classList.remove("selected");
+    } else {
+      selectedDates.push(dateStr);
+      selectedDates.sort();
+      btn.classList.add("selected");
+    }
+    updateSummary();
+
+    // Notify Axure parent (if embedded via inline frame)
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: "nonWorkingDates", dates: selectedDates }, "*");
+      }
+    } catch(e) {}
+  }
+
+  function clearAll() {
+    selectedDates = [];
+    render();
+  }
+
+  function updateSummary() {
+    const el = document.getElementById("summary");
+    const title = document.getElementById("summaryTitle");
+    const dates = document.getElementById("summaryDates");
+    if (selectedDates.length === 0) {
+      el.classList.remove("visible");
+      return;
+    }
+    el.classList.add("visible");
+    title.textContent = "Días no laborables seleccionados (" + selectedDates.length + "):";
+    dates.textContent = selectedDates.map(d => {
+      const [y,m,day] = d.split("-");
+      return day + "/" + m + "/" + y;
+    }).join(", ");
+  }
+
+  function render() {
+    document.getElementById("monthLabel").textContent = MONTHS[viewMonth] + " " + viewYear;
+
+    const grid = document.getElementById("calGrid");
+    grid.innerHTML = "";
+
+    // Day name headers
+    DAYS.forEach(d => {
+      const el = document.createElement("div");
+      el.className = "day-name";
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+
+    const firstDay  = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMon = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+    // Empty cells
+    for (let i = 0; i < firstDay; i++) {
+      const el = document.createElement("div");
+      el.className = "day-cell empty";
+      grid.appendChild(el);
+    }
+
+    // Day cells
+    for (let d = 1; d <= daysInMon; d++) {
+      const dow     = new Date(viewYear, viewMonth, d).getDay();
+      const dateStr = viewYear + "-" + String(viewMonth+1).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+      const isWeekend  = (dow === 0 || dow === 6);
+      const isSelected = selectedDates.includes(dateStr);
+
+      const btn = document.createElement("button");
+      btn.className = "day-cell" +
+        (isWeekend  ? " weekend"  : "") +
+        (isSelected ? " selected" : "");
+      btn.textContent = d;
+      btn.title = isSelected ? "Clic para desmarcar" : "Clic para marcar como no laborable";
+      btn.onclick = () => toggleDate(dateStr, btn);
+      grid.appendChild(btn);
+    }
+
+    updateSummary();
+  }
+
+  render();
+</script>
+</body>
+</html>
