@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Calendario de Vacaciones</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f4f6f8;
+    padding: 16px;
+    font-size: 13px;
+    color: #333;
+  }
+
+  .calendar-wrapper {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 16px;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 100%;
+  }
+
+  /* Navigation */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .nav-bar button {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 17px;
+    color: #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+  }
+  .nav-bar button:hover { background: #f0f0f0; }
+  .nav-bar button:disabled { opacity: 0.3; cursor: default; }
+
+  .nav-label {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+  }
+
+  /* Months container */
+  .months-container {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .month-divider {
+    width: 1px;
+    background: #dee2e6;
+    align-self: stretch;
+    flex-shrink: 0;
+  }
+
+  /* Single month */
+  .month-block {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .month-title {
+    text-align: center;
+    font-weight: 700;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 8px;
+    text-transform: capitalize;
+  }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+
+  .day-name {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #999;
+    padding: 2px 0 5px;
+  }
+
+  /* Day cell */
+  .day-cell {
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    user-select: none;
+  }
+
+  .day-cell.empty {
+    visibility: hidden;
+  }
+
+  .day-cell.today {
+    border-color: #0d6efd !important;
+  }
+
+  /* Day number label (sits on top of background) */
+  .day-num {
+    position: relative;
+    z-index: 2;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  /* ── FULL DAY backgrounds ── */
+  .day-cell.full-vac       { background: #b8e4ff; color: #004a75; border-color: #7cc8f5; }
+  .day-cell.full-feriado   { background: #ffd6d6; color: #7a0000; border-color: #f5a0a0; }
+  .day-cell.full-nolaboral { background: #ffe0b2; color: #7a3700; border-color: #ffb74d; }
+  .day-cell.full-reintegro { background: #d4edda; color: #155724; border-color: #90d4a0; }
+  .day-cell.weekend        { background: #f5f5f5; color: #bbb; }
+  .day-cell.normal         { background: #fff;    color: #333; border-color: #eee; }
+
+  /* ── HALF DAY split: left = AM, right = PM ── */
+  .day-cell.half {
+    background: transparent !important;
+    border-color: #ccc;
+  }
+
+  .half-left,
+  .half-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+  }
+  .half-left  { left: 0; }
+  .half-right { right: 0; }
+
+  /* half color classes */
+  .bg-vac       { background: #b8e4ff; }
+  .bg-feriado   { background: #ffd6d6; }
+  .bg-nolaboral { background: #ffe0b2; }
+  .bg-reintegro { background: #d4edda; }
+  .bg-normal    { background: #fff; }
+  .bg-weekend   { background: #f5f5f5; }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    padding-top: 10px;
+    border-top: 1px solid #dee2e6;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #555;
+  }
+
+  .legend-swatch {
+    width: 28px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+    flex-shrink: 0;
+  }
+
+  .legend-swatch.half-demo {
+    display: flex;
+    overflow: hidden;
+  }
+  .legend-swatch.half-demo span {
+    flex: 1;
+    display: block;
+  }
+
+  /* ── TOTALS BAR ── */
+  .totals-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+  }
+
+  .totals-bar .total-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 6px 12px;
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .total-card .tc-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .total-card .tc-label {
+    font-size: 11px;
+    color: #666;
+    flex: 1;
+    white-space: nowrap;
+  }
+
+  .total-card .tc-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #333;
+    white-space: nowrap;
+  }
+
+  .total-card .tc-value span {
+    font-size: 10px;
+    font-weight: 400;
+    color: #999;
+    margin-left: 2px;
+  }
+
+  /* ── JSON INPUT panel ── */
+  .json-panel {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+
+  .json-panel summary {
+    font-size: 12px;
+    font-weight: 700;
+    color: #555;
+    cursor: pointer;
+    user-select: none;
+  }
+  .json-panel summary:hover { color: #333; }
+
+  .json-panel textarea {
+    width: 100%;
+    height: 110px;
+    margin-top: 8px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 6px 8px;
+    resize: vertical;
+    color: #333;
+  }
+
+  .json-panel .btn-load {
+    margin-top: 6px;
+    background: #0d6efd;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 14px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .json-panel .btn-load:hover { background: #0b5ed7; }
+
+  .json-error {
+    margin-top: 5px;
+    font-size: 11px;
+    color: #dc3545;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="calendar-wrapper" id="calWrapper">
+
+  <!-- JSON input (collapsible — remove this block in production if not needed) -->
+  <details class="json-panel" id="jsonPanel">
+    <summary>📥 Cargar datos JSON</summary>
+    <textarea id="jsonInput" spellcheck="false" placeholder='[
+  { "fecha": "2025-02-10", "tipo": "vacaciones" },
+  { "fecha": "2025-02-11", "tipo": "feriado" },
+  { "fecha": "2025-02-14", "tipo": "nolaboral" },
+  { "fecha": "2025-02-20", "tipo": "reintegro" },
+  { "fecha": "2025-02-25", "am": "vacaciones", "pm": "feriado" }
+]'></textarea>
+    <button class="btn-load" onclick="loadJSON()">Aplicar</button>
+    <div class="json-error" id="jsonError"></div>
+  </details>
+
+  <!-- Navigation -->
+  <div class="nav-bar">
+    <button id="btnPrev" onclick="navigate(-1)">&#8249;</button>
+    <span class="nav-label" id="navLabel"></span>
+    <button id="btnNext" onclick="navigate(1)">&#8250;</button>
+  </div>
+
+  <!-- Months -->
+  <div class="months-container" id="monthsContainer"></div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#b8e4ff; border-color:#7cc8f5;"></div>
+      Vacaciones
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#ffd6d6; border-color:#f5a0a0;"></div>
+      Feriado
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#ffe0b2; border-color:#ffb74d;"></div>
+      No Laborable
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#d4edda; border-color:#90d4a0;"></div>
+      Vacaciones Reintegradas
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch half-demo">
+        <span style="background:#b8e4ff;"></span>
+        <span style="background:#ffd6d6;"></span>
+      </div>
+      Medio día (AM / PM)
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:#f5f5f5; border-color:#ddd;"></div>
+      Fin de semana
+    </div>
+  </div>
+
+  <!-- Totals -->
+  <div class="totals-bar" id="totalsBar"></div>
+
+</div>
+
+<script>
+  // ─────────────────────────────────────────────
+  //  STATE
+  // ─────────────────────────────────────────────
+  const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                     "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const DAYS_ES   = ["Do","Lu","Ma","Mi","Ju","Vi","Sá"];
+
+  // dayMap: "YYYY-MM-DD" → { tipo } | { am, pm }
+  let dayMap = {};
+
+  // months to show: array of { year, month } (0-indexed month), max 3
+  let visibleMonths = [];
+  let allMonths     = []; // derived from data
+  let startIdx      = 0;  // index into allMonths for the leftmost visible month
+
+  const today = new Date();
+  const todayStr = fmtDate(today.getFullYear(), today.getMonth()+1, today.getDate());
+
+  // ─────────────────────────────────────────────
+  //  SAMPLE DATA (shown on first load)
+  // ─────────────────────────────────────────────
+  const sampleData = [
+    { fecha: "2025-02-03", tipo: "vacaciones" },
+    { fecha: "2025-02-04", tipo: "vacaciones" },
+    { fecha: "2025-02-05", tipo: "vacaciones" },
+    { fecha: "2025-02-06", am: "vacaciones", pm: "reintegro" },
+    { fecha: "2025-02-14", tipo: "feriado" },
+    { fecha: "2025-02-20", tipo: "nolaboral" },
+    { fecha: "2025-02-21", tipo: "nolaboral" },
+    { fecha: "2025-03-03", tipo: "feriado" },
+    { fecha: "2025-03-10", tipo: "vacaciones" },
+    { fecha: "2025-03-11", tipo: "vacaciones" },
+    { fecha: "2025-03-12", am: "vacaciones", pm: "feriado" },
+    { fecha: "2025-03-25", tipo: "reintegro" },
+    { fecha: "2025-04-17", tipo: "feriado" },
+    { fecha: "2025-04-18", tipo: "feriado" },
+    { fecha: "2025-04-21", tipo: "nolaboral" },
+    { fecha: "2025-04-22", am: "nolaboral", pm: "vacaciones" },
+  ];
+
+  // ─────────────────────────────────────────────
+  //  HELPERS
+  // ─────────────────────────────────────────────
+  function fmtDate(y, m, d) {
+    return y + "-" + String(m).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+  }
+
+  function bgClass(tipo) {
+    const map = {
+      vacaciones: "bg-vac",
+      feriado:    "bg-feriado",
+      nolaboral:  "bg-nolaboral",
+      reintegro:  "bg-reintegro",
+    };
+    return map[tipo] || "bg-normal";
+  }
+
+  function fullClass(tipo) {
+    const map = {
+      vacaciones: "full-vac",
+      feriado:    "full-feriado",
+      nolaboral:  "full-nolaboral",
+      reintegro:  "full-reintegro",
+    };
+    return map[tipo] || "normal";
+  }
+
+  // ─────────────────────────────────────────────
+  //  LOAD DATA
+  // ─────────────────────────────────────────────
+  function applyData(data) {
+    dayMap = {};
+    const monthSet = new Set();
+
+    data.forEach(item => {
+      if (!item.fecha) return;
+      const key = item.fecha.trim();
+      const [y, m] = key.split("-");
+      monthSet.add(y + "-" + m);
+
+      if (item.am || item.pm) {
+        dayMap[key] = { am: (item.am || "normal"), pm: (item.pm || "normal") };
+      } else if (item.tipo) {
+        dayMap[key] = { tipo: item.tipo };
+      }
+    });
+
+    // Build sorted list of unique months
+    allMonths = Array.from(monthSet).sort().map(s => {
+      const [y, m] = s.split("-");
+      return { year: parseInt(y), month: parseInt(m) - 1 };
+    });
+
+    if (allMonths.length === 0) {
+      allMonths = [{ year: today.getFullYear(), month: today.getMonth() }];
+    }
+
+    startIdx = 0;
+    render();
+  }
+
+  // ─────────────────────────────────────────────
+  //  NAVIGATION
+  // ─────────────────────────────────────────────
+  function navigate(delta) {
+    startIdx = Math.max(0, Math.min(startIdx + delta, allMonths.length - 1));
+    render();
+  }
+
+  // ─────────────────────────────────────────────
+  //  TOTALS
+  // ─────────────────────────────────────────────
+  const TIPO_META = [
+    { key: "vacaciones", label: "Vacaciones",              color: "#b8e4ff", border: "#7cc8f5" },
+    { key: "feriado",    label: "Feriados",                color: "#ffd6d6", border: "#f5a0a0" },
+    { key: "nolaboral",  label: "No Laborables",           color: "#ffe0b2", border: "#ffb74d" },
+    { key: "reintegro",  label: "Vac. Reintegradas",       color: "#d4edda", border: "#90d4a0" },
+  ];
+
+  function computeTotals() {
+    const totals = { vacaciones: 0, feriado: 0, nolaboral: 0, reintegro: 0 };
+
+    Object.values(dayMap).forEach(entry => {
+      if (entry.am !== undefined || entry.pm !== undefined) {
+        // half days: each half = 0.5
+        if (entry.am && totals[entry.am] !== undefined) totals[entry.am] += 0.5;
+        if (entry.pm && totals[entry.pm] !== undefined) totals[entry.pm] += 0.5;
+      } else if (entry.tipo && totals[entry.tipo] !== undefined) {
+        totals[entry.tipo] += 1;
+      }
+    });
+
+    return totals;
+  }
+
+  function renderTotals() {
+    const totals = computeTotals();
+    const bar = document.getElementById("totalsBar");
+    bar.innerHTML = "";
+
+    TIPO_META.forEach(meta => {
+      const val = totals[meta.key];
+      const isHalf = (val % 1 !== 0);
+      const display = isHalf
+        ? (val % 1 === 0.5 ? val.toFixed(1) : val)
+        : val;
+
+      const card = document.createElement("div");
+      card.className = "total-card";
+      card.innerHTML = `
+        <div class="tc-dot" style="background:${meta.color}; border:1px solid ${meta.border};"></div>
+        <div class="tc-label">${meta.label}</div>
+        <div class="tc-value">${display}<span>días</span></div>
+      `;
+      bar.appendChild(card);
+    });
+  }
+
+  // ─────────────────────────────────────────────
+  //  RENDER
+  // ─────────────────────────────────────────────
+  function render() {
+    // Slice up to 3 months starting at startIdx
+    visibleMonths = allMonths.slice(startIdx, startIdx + 3);
+
+    // Nav label
+    const first = visibleMonths[0];
+    const last  = visibleMonths[visibleMonths.length - 1];
+    const label = visibleMonths.length > 1
+      ? MONTHS_ES[first.month] + " " + first.year + " – " + MONTHS_ES[last.month] + " " + last.year
+      : MONTHS_ES[first.month] + " " + first.year;
+    document.getElementById("navLabel").textContent = label;
+
+    // Nav buttons
+    document.getElementById("btnPrev").disabled = (startIdx === 0);
+    document.getElementById("btnNext").disabled = (startIdx + 3 >= allMonths.length);
+
+    // Build months HTML
+    const container = document.getElementById("monthsContainer");
+    container.innerHTML = "";
+
+    visibleMonths.forEach((mv, idx) => {
+      if (idx > 0) {
+        const div = document.createElement("div");
+        div.className = "month-divider";
+        container.appendChild(div);
+      }
+      container.appendChild(buildMonth(mv.year, mv.month));
+    });
+
+    renderTotals();
+  }
+
+  function buildMonth(year, month) {
+    const block = document.createElement("div");
+    block.className = "month-block";
+
+    // Title
+    const title = document.createElement("div");
+    title.className = "month-title";
+    title.textContent = MONTHS_ES[month] + " " + year;
+    block.appendChild(title);
+
+    // Grid
+    const grid = document.createElement("div");
+    grid.className = "cal-grid";
+
+    // Day name headers
+    DAYS_ES.forEach(d => {
+      const el = document.createElement("div");
+      el.className = "day-name";
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+
+    const firstDow  = new Date(year, month, 1).getDay();
+    const daysInMon = new Date(year, month + 1, 0).getDate();
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDow; i++) {
+      const el = document.createElement("div");
+      el.className = "day-cell empty";
+      grid.appendChild(el);
+    }
+
+    // Day cells
+    for (let d = 1; d <= daysInMon; d++) {
+      const dow     = new Date(year, month, d).getDay();
+      const isWE    = (dow === 0 || dow === 6);
+      const dateStr = fmtDate(year, month + 1, d);
+      const entry   = dayMap[dateStr];
+      const isToday = (dateStr === todayStr);
+
+      const cell = document.createElement("div");
+      cell.className = "day-cell";
+      if (isToday) cell.classList.add("today");
+
+      if (entry) {
+        if (entry.am !== undefined || entry.pm !== undefined) {
+          // ── HALF DAY ──
+          cell.classList.add("half");
+
+          const hleft  = document.createElement("div");
+          hleft.className = "half-left " + bgClass(entry.am || "normal");
+
+          const hright = document.createElement("div");
+          hright.className = "half-right " + bgClass(entry.pm || "normal");
+
+          cell.appendChild(hleft);
+          cell.appendChild(hright);
+        } else {
+          // ── FULL DAY ──
+          cell.classList.add(isWE ? "weekend" : fullClass(entry.tipo));
+          if (isWE && entry.tipo) {
+            // weekend with a special type — show it anyway
+            cell.classList.remove("weekend");
+            cell.classList.add(fullClass(entry.tipo));
+          }
+        }
+      } else {
+        cell.classList.add(isWE ? "weekend" : "normal");
+      }
+
+      const num = document.createElement("span");
+      num.className = "day-num";
+      num.textContent = d;
+      cell.appendChild(num);
+
+      grid.appendChild(cell);
+    }
+
+    block.appendChild(grid);
+    return block;
+  }
+
+  // ─────────────────────────────────────────────
+  //  JSON PANEL
+  // ─────────────────────────────────────────────
+  function loadJSON() {
+    const raw = document.getElementById("jsonInput").value.trim();
+    const errEl = document.getElementById("jsonError");
+    errEl.style.display = "none";
+    try {
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data)) throw new Error("Se esperaba un array JSON");
+      applyData(data);
+    } catch(e) {
+      errEl.textContent = "JSON inválido: " + e.message;
+      errEl.style.display = "block";
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  postMessage API (for Axure integration)
+  //  Send from parent:  frame.contentWindow.postMessage({ type:"loadData", data:[...] }, "*")
+  // ─────────────────────────────────────────────
+  window.addEventListener("message", function(e) {
+    if (e.data && e.data.type === "loadData" && Array.isArray(e.data.data)) {
+      applyData(e.data.data);
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  //  INIT
+  // ─────────────────────────────────────────────
+  applyData(sampleData);
+</script>
+</body>
+</html>
